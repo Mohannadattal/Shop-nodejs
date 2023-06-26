@@ -13,7 +13,7 @@ const csrf = require('csurf');
 const flash = require('connect-flash');
 
 const MONGODB_URI =
-  'mongodb+srv://mohannad:V3rTHefsIB@cluster0.gf0jqk6.mongodb.net/shop';
+  'mongodb+srv://<your userName>:<your password>@cluster0.gf0jqk6.mongodb.net/shop';
 
 const app = express();
 
