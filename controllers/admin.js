@@ -1,5 +1,6 @@
 const Product = require('../models/product');
 const { validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 
 exports.getAddProduct = (req, res, next) => {
   res.render('admin/edit-product', {
@@ -8,6 +9,7 @@ exports.getAddProduct = (req, res, next) => {
     editing: false,
     hasError: false,
     errorMessage: null,
+    validationErrors: [],
   });
 };
 
@@ -21,8 +23,8 @@ exports.postAddProduct = (req, res, next) => {
   if (!errors.isEmpty()) {
     console.log(errors.array());
     return res.status(422).render('admin/edit-product', {
-      pageTitle: 'Add product',
-      path: '/admin/edit-product',
+      pageTitle: 'Add Product',
+      path: '/admin/add-product',
       editing: false,
       hasError: true,
       product: {
@@ -35,11 +37,13 @@ exports.postAddProduct = (req, res, next) => {
       validationErrors: errors.array(),
     });
   }
+
   const product = new Product({
+    // _id: new mongoose.Types.ObjectId('649acc5d882c71e17deea692'),
     title: title,
     price: price,
-    imageUrl: imageUrl,
     description: description,
+    imageUrl: imageUrl,
     userId: req.user,
   });
   product
@@ -50,7 +54,26 @@ exports.postAddProduct = (req, res, next) => {
       res.redirect('/admin/products');
     })
     .catch((err) => {
-      console.log(err);
+      //   return res.status(500).render('admin/edit-product', {
+      //     pageTitle: 'Add Product',
+      //     path: '/admin/add-product',
+      //     editing: false,
+      //     hasError: true,
+      //     product: {
+      //       title: title,
+      //       imageUrl: imageUrl,
+      //       price: price,
+      //       description: description,
+      //     },
+      //     errorMessage: 'Database operation failed, please try agin',
+      //     validationErrors: []
+      //   });
+      // });
+
+      //res.redirect('/500');
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
@@ -59,7 +82,6 @@ exports.getEditProduct = (req, res, next) => {
   if (!editMode) {
     return res.redirect('/');
   }
-
   const prodId = req.params.productId;
   Product.findById(prodId)
     .then((product) => {
@@ -67,7 +89,7 @@ exports.getEditProduct = (req, res, next) => {
         return res.redirect('/');
       }
       res.render('admin/edit-product', {
-        pageTitle: 'Edit product',
+        pageTitle: 'Edit Product',
         path: '/admin/edit-product',
         editing: editMode,
         product: product,
@@ -77,7 +99,9 @@ exports.getEditProduct = (req, res, next) => {
       });
     })
     .catch((err) => {
-      console.log(err);
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
@@ -86,14 +110,13 @@ exports.postEditProduct = (req, res, next) => {
   const updatedTitle = req.body.title;
   const updatedPrice = req.body.price;
   const updatedImageUrl = req.body.imageUrl;
-  const updatedDescription = req.body.description;
+  const updatedDesc = req.body.description;
 
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    console.log(errors.array());
     return res.status(422).render('admin/edit-product', {
-      pageTitle: 'Edit product',
+      pageTitle: 'Edit Product',
       path: '/admin/edit-product',
       editing: true,
       hasError: true,
@@ -101,35 +124,39 @@ exports.postEditProduct = (req, res, next) => {
         title: updatedTitle,
         imageUrl: updatedImageUrl,
         price: updatedPrice,
-        description: updatedDescription,
+        description: updatedDesc,
         _id: prodId,
       },
       errorMessage: errors.array()[0].msg,
       validationErrors: errors.array(),
     });
   }
+
   Product.findById(prodId)
     .then((product) => {
       if (product.userId.toString() !== req.user._id.toString()) {
         return res.redirect('/');
       }
-      (product.title = updatedTitle), (product.price = updatedPrice);
+      product.title = updatedTitle;
+      product.price = updatedPrice;
+      product.description = updatedDesc;
       product.imageUrl = updatedImageUrl;
-      product.description = updatedDescription;
       return product.save().then((result) => {
         console.log('UPDATED PRODUCT!');
         res.redirect('/admin/products');
       });
     })
-
     .catch((err) => {
-      console.log(err);
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
 exports.getProducts = (req, res, next) => {
   Product.find({ userId: req.user._id })
-
+    // .select('title price -_id')
+    // .populate('userId', 'name')
     .then((products) => {
       console.log(products);
       res.render('admin/products', {
@@ -139,7 +166,9 @@ exports.getProducts = (req, res, next) => {
       });
     })
     .catch((err) => {
-      console.log(err);
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
@@ -147,10 +176,12 @@ exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
   Product.deleteOne({ _id: prodId, userId: req.user._id })
     .then(() => {
-      console.log('DELETED PRODUCT');
+      console.log('DESTROYED PRODUCT');
       res.redirect('/admin/products');
     })
     .catch((err) => {
-      console.log(err);
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
